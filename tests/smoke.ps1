@@ -42,7 +42,7 @@ Check ((Live) -eq 'A') 'switch restores account A'
 Check ((Get-Content $launched) -match 'launch-product=valorant') 'switch starts Valorant'
 Check (@(Get-Process RiotClientServices -ErrorAction SilentlyContinue).Count -eq 1) 'old client was closed, one new one started'
 
-Run switch smurf --no-launch
+Run switch 'SMURF ACCT' --no-launch
 Check ((Live) -eq 'B') 'case-insensitive switch restores account B'
 Check ((& $Exe current) -eq 'Smurf acct') 'current reports the active account'
 
