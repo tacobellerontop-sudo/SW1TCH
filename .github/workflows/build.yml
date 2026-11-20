@@ -1,0 +1,26 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests
+        run: cargo test
+      - name: Build release
+        run: cargo build --release --bins --examples
+      - name: Smoke test
+        shell: pwsh
+        run: ./tests/smoke.ps1 target/release/sw1tch.exe target/release/examples/fake_riot.exe
+      - name: Binary size
+        shell: pwsh
+        run: '"sw1tch.exe: {0:N0} bytes" -f (Get-Item target/release/sw1tch.exe).Length'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sw1tch-windows-x64
+          path: target/release/sw1tch.exe
