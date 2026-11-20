@@ -16,11 +16,21 @@ jobs:
         run: cargo build --release --bins --examples
       - name: Smoke test
         shell: pwsh
-        run: ./tests/smoke.ps1 target/release/sw1tch.exe target/release/examples/fake_riot.exe
+        run: ./tests/smoke.ps1 target/release/sw1tch-cli.exe target/release/examples/fake_riot.exe
+      - name: GUI smoke test
+        shell: powershell
+        run: ./tests/gui-smoke.ps1 target/release target/release/examples/fake_riot.exe screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gui-screenshots
+          path: screenshots
       - name: Binary size
         shell: pwsh
-        run: '"sw1tch.exe: {0:N0} bytes" -f (Get-Item target/release/sw1tch.exe).Length'
+        run: Get-Item target/release/sw1tch*.exe | ForEach-Object { "{0}: {1:N0} bytes" -f $_.Name, $_.Length }
       - uses: actions/upload-artifact@v4
         with:
           name: sw1tch-windows-x64
-          path: target/release/sw1tch.exe
+          path: |
+            target/release/sw1tch.exe
+            target/release/sw1tch-cli.exe

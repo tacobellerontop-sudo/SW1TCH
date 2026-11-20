@@ -29,6 +29,7 @@ const SESSION_FILES: &[&str] = &[
     "Data/RiotClientPrivateSettings.yaml",
 ];
 
+#[derive(Clone)]
 pub struct Store {
     /// Live Riot Client data folder.
     pub riot: PathBuf,

@@ -20,7 +20,7 @@ function Login($who) {
   Set-Content (Join-Path $riot 'Data\Cookies\c') $who
   Set-Content (Join-Path $riot 'Config\RiotClientSettings.yaml') "cfg$who"
 }
-function Run { Write-Host "> sw1tch $args"; & $Exe @args; if ($LASTEXITCODE) { throw "sw1tch $args failed ($LASTEXITCODE)" } }
+function Run { Write-Host "> sw1tch-cli $args"; & $Exe @args; if ($LASTEXITCODE) { throw "sw1tch $args failed ($LASTEXITCODE)" } }
 function Live { (Get-Content (Join-Path $riot 'Data\RiotGamesPrivateSettings.yaml')).Trim() }
 function Check($cond, $msg) { if (-not $cond) { throw "FAILED: $msg" }; Write-Host "ok: $msg" }
 function ClientRunning { @(Get-Process RiotClientServices -ErrorAction SilentlyContinue).Count -gt 0 }
