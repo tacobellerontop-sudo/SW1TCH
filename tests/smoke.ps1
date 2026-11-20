@@ -54,3 +54,4 @@ Check ((& $Exe list) -match 'main') 'list still shows main'
 & $Exe bogus 2>$null; Check ($LASTEXITCODE -ne 0) 'unknown command fails'
 Get-Process RiotClientServices -ErrorAction SilentlyContinue | Stop-Process -Force
 Write-Host 'smoke test passed'
+exit 0
