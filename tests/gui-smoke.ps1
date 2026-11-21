@@ -1,4 +1,4 @@
-# Drives the sw1tch window with UI Automation against a fake Riot Client.
+# Drives the sw1tch window (via window messages) against a fake Riot Client.
 # Usage (Windows PowerShell 5.1): powershell -File tests/gui-smoke.ps1 <release-dir> <fake_riot.exe> <screenshot-dir>
 param([string]$Bin, [string]$Fake, [string]$Shots)
 $ErrorActionPreference = 'Stop'
@@ -44,12 +44,26 @@ function Shot($win, $file) {
   $g.CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $bmp.Size)
   $path = Join-Path $Shots $file
   $bmp.Save($path); $g.Dispose(); $bmp.Dispose()
-  Write-Host "BEGIN-PNG $file"; Write-Host ([Convert]::ToBase64String([IO.File]::ReadAllBytes($path))); Write-Host "END-PNG"
 }
 function Status($win) {
-  $c = New-Object System.Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text)
-  ($win.FindAll($Tree::Descendants, $c) | ForEach-Object { $_.Current.Name }) -join ' | '
+  ($win.FindAll($Tree::Children, [System.Windows.Automation.Condition]::TrueCondition) | ForEach-Object { $_.Current.Name }) -join ' | '
 }
+Add-Type @"
+using System; using System.Text; using System.Runtime.InteropServices;
+public static class W {
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string t);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr p, IntPtr a, string c, string t);
+  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h, int m, IntPtr w, IntPtr l);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr h, int m, IntPtr w, StringBuilder l);
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, int m, IntPtr w, IntPtr l);
+  public static string[] Items(IntPtr list) {
+    int n = (int)SendMessage(list, 0x18B, IntPtr.Zero, IntPtr.Zero); // LB_GETCOUNT
+    var r = new string[n];
+    for (int i = 0; i < n; i++) { var sb = new StringBuilder(256); SendMessage(list, 0x189, (IntPtr)i, sb); r[i] = sb.ToString(); } // LB_GETTEXT
+    return r;
+  }
+}
+"@
 
 Login 'A'; & $cli save main --no-launch | Out-Null
 Login 'B'; & $cli save alt --no-launch | Out-Null
@@ -57,15 +71,23 @@ Check ((Get-Content $yaml) -eq 'B') 'alt is live before the GUI starts'
 & $cli list
 
 $proc = Start-Process (Join-Path $Bin 'sw1tch.exe') -PassThru
-$win = Find $UIA::RootElement $UIA::NameProperty 'SW1TCH - Valorant accounts'
-Check ($win -ne $null) 'window opened'
+$hwnd = [IntPtr]::Zero
+for ($i = 0; $i -lt 50 -and $hwnd -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 200; $hwnd = [W]::FindWindow('Sw1tchWindow', $null) }
+Check ($hwnd -ne [IntPtr]::Zero) 'window opened'
 Start-Sleep -Milliseconds 500
+$win = $UIA::FromHandle($hwnd)
 Shot $win 'gui-start.png'
 
-$item = Find $win $UIA::NameProperty 'main'
-$item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
-$btn = Find $win $UIA::NameProperty 'Switch'
-$btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+$list = [W]::FindWindowEx($hwnd, [IntPtr]::Zero, 'ListBox', $null)
+$items = [W]::Items($list)
+Write-Host "list: $($items -join ', ')"
+Check ($items.Count -eq 2 -and $items[0] -eq 'alt    (active)' -and $items[1] -eq 'main') 'list shows both accounts with alt active'
+Check ((Status $win) -match 'Double-click an account') 'status shows the hint'
+
+# Select 'main' and click Switch.
+[void][W]::SendMessage($list, 0x186, [IntPtr]1, [IntPtr]::Zero)  # LB_SETCURSEL
+$switch = [W]::FindWindowEx($hwnd, [IntPtr]::Zero, 'Button', 'Switch')
+[void][W]::PostMessage($switch, 0xF5, [IntPtr]::Zero, [IntPtr]::Zero)  # BM_CLICK
 
 for ($i = 0; $i -lt 50 -and (Get-Content $yaml -ErrorAction SilentlyContinue) -ne 'A'; $i++) { Start-Sleep -Milliseconds 200 }
 Check ((Get-Content $yaml) -eq 'A') 'clicking Switch restored main'
@@ -74,11 +96,12 @@ $status = Status $win
 Write-Host "status: $status"
 Check ($status -match "Switched to 'main'") 'status shows the switch'
 Check (Get-Process RiotClientServices -ErrorAction SilentlyContinue) 'Riot Client was started'
-$null = Find $win $UIA::NameProperty 'main    (active)'
-Write-Host 'ok: list marks main as active'
+$items = [W]::Items($list)
+Write-Host "list: $($items -join ', ')"
+Check ($items[1] -eq 'main    (active)') 'list marks main as active'
 Shot $win 'gui-switched.png'
 
-$win.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close()
+[void][W]::PostMessage($hwnd, 0x10, [IntPtr]::Zero, [IntPtr]::Zero)  # WM_CLOSE
 Check ($proc.WaitForExit(5000)) 'window closes cleanly'
 Get-Process RiotClientServices -ErrorAction SilentlyContinue | Stop-Process -Force
 Write-Host 'gui smoke test passed'
