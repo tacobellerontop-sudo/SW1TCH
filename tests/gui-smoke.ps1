@@ -72,13 +72,13 @@ Check ((Get-Content $yaml) -eq 'B') 'alt is live before the GUI starts'
 
 $proc = Start-Process (Join-Path $Bin 'sw1tch.exe') -PassThru
 $hwnd = [IntPtr]::Zero
-for ($i = 0; $i -lt 50 -and $hwnd -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 200; $hwnd = [W]::FindWindow('Sw1tchWindow', $null) }
+for ($i = 0; $i -lt 50 -and $hwnd -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 200; $hwnd = [W]::FindWindow('Sw1tchWindow', [NullString]::Value) }
 Check ($hwnd -ne [IntPtr]::Zero) 'window opened'
 Start-Sleep -Milliseconds 500
 $win = $UIA::FromHandle($hwnd)
 Shot $win 'gui-start.png'
 
-$list = [W]::FindWindowEx($hwnd, [IntPtr]::Zero, 'ListBox', $null)
+$list = [W]::FindWindowEx($hwnd, [IntPtr]::Zero, 'ListBox', [NullString]::Value)
 $items = [W]::Items($list)
 Write-Host "list: $($items -join ', ')"
 Check ($items.Count -eq 2 -and $items[0] -eq 'alt    (active)' -and $items[1] -eq 'main') 'list shows both accounts with alt active'
