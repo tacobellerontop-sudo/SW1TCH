@@ -33,6 +33,8 @@ function Find($parent, $prop, $value) {
     if ($e) { return $e }
     Start-Sleep -Milliseconds 200
   }
+  $all = $parent.FindAll($Tree::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+  $all | ForEach-Object { Write-Host ("  [{0}] '{1}'" -f $_.Current.ControlType.ProgrammaticName, $_.Current.Name) }
   throw "not found: $value"
 }
 function Shot($win, $file) {
@@ -40,7 +42,9 @@ function Shot($win, $file) {
   $bmp = New-Object System.Drawing.Bitmap ([int]$r.Width), ([int]$r.Height)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $bmp.Size)
-  $bmp.Save((Join-Path $Shots $file)); $g.Dispose(); $bmp.Dispose()
+  $path = Join-Path $Shots $file
+  $bmp.Save($path); $g.Dispose(); $bmp.Dispose()
+  Write-Host "BEGIN-PNG $file"; Write-Host ([Convert]::ToBase64String([IO.File]::ReadAllBytes($path))); Write-Host "END-PNG"
 }
 function Status($win) {
   $c = New-Object System.Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text)
@@ -50,6 +54,7 @@ function Status($win) {
 Login 'A'; & $cli save main --no-launch | Out-Null
 Login 'B'; & $cli save alt --no-launch | Out-Null
 Check ((Get-Content $yaml) -eq 'B') 'alt is live before the GUI starts'
+& $cli list
 
 $proc = Start-Process (Join-Path $Bin 'sw1tch.exe') -PassThru
 $win = Find $UIA::RootElement $UIA::NameProperty 'SW1TCH - Valorant accounts'
