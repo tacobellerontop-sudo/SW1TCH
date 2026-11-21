@@ -27,7 +27,8 @@ jobs:
           path: screenshots
       - name: Binary size
         shell: pwsh
-        run: Get-Item target/release/sw1tch*.exe | ForEach-Object { "{0}: {1:N0} bytes" -f $_.Name, $_.Length }
+        run: |
+          Get-Item target/release/sw1tch*.exe | ForEach-Object { "{0}: {1:N0} bytes" -f $_.Name, $_.Length }
       - uses: actions/upload-artifact@v4
         with:
           name: sw1tch-windows-x64
