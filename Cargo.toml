@@ -1,0 +1,25 @@
+[package]
+name = "sw1tch"
+version = "0.1.0"
+edition = "2021"
+description = "Tiny Valorant / Riot Client account switcher for Windows"
+publish = false
+autobins = false
+
+[[bin]]
+name = "sw1tch"
+path = "src/gui.rs"
+
+[[bin]]
+name = "sw1tch-cli"
+path = "src/main.rs"
+
+# No dependencies on purpose: everything uses std plus a handful of Win32 calls.
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
